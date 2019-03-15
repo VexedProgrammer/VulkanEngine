@@ -955,6 +955,7 @@ void VulkanApp::createGraphicsPipeline(VkBool32 depthOn) {
 		pipelineInfo.pStages = shaderStagesGeom;
 		pipelineInfo.layout = pipelineLayoutGeom;
 
+		rasterizer.cullMode = VK_CULL_MODE_NONE;
 
 
 		if (vkCreateGraphicsPipelines(device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &graphicsPipelineGeom) != VK_SUCCESS) {
@@ -1416,16 +1417,14 @@ void VulkanApp::updateUniformBuffer(uint32_t currentImage, unsigned int objectIn
 	//Set up the uniform model matrix (rotation and translation and scale)
 	UniformBufferObject ubo = {};
 	//glm::mat4 model = glm::translate(glm::mat4(1.0f), m_Objects[objectIndex]->GetPos()) * glm::rotate(ubo.model, time * glm::radians(45.0f), glm::vec3(0.0f, 1.0f, 0.0f)) * glm::scale(glm::mat4(1.0f), glm::vec3(10.0f, 10.0f, 10.0f));
-	glm::mat4 model = glm::translate(glm::mat4(1.0f), m_Objects[objectIndex]->GetPos()) * glm::rotate(ubo.model, time * glm::radians(45.0f), glm::vec3(0.0f, 1.0f, 0.0f)) * glm::scale(glm::mat4(1.0f), glm::vec3(10.0f, 10.0f, 10.0f));
 	ubo.model = glm::mat4(1);
-	ubo.model = glm::translate(glm::mat4(1.0f), m_Objects[objectIndex]->GetPos()) * glm::rotate(ubo.model, time * glm::radians(45.0f), glm::vec3(0.0f, 1.0f, 0.0f));// *glm::scale(glm::mat4(1.0f), glm::vec3(10.0f, 10.0f, 10.0f));;// glm::translate(glm::mat4(1.0f), m_Objects[objectIndex]->GetPos()) * glm::rotate(ubo.model, time * glm::radians(45.0f), glm::vec3(0.0f, 1.0f, 0.0f)) * glm::scale(glm::mat4(1.0f), glm::vec3(10.0f, 10.0f, 10.0f));
-	
+	ubo.model = glm::translate(glm::mat4(1.0f), m_Objects[objectIndex]->GetPos()) * glm::rotate(ubo.model, time * glm::radians(45.0f), glm::vec3(0.0f, 1.0f, 0.0f)) * glm::scale(glm::mat4(1.0f), glm::vec3(1.0f, 1.0f, 1.0f));
 	
 	
 	//View matrix using look at
-	ubo.view = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, -0.5f));// glm::lookAt(glm::vec3(0.0f, 0.1f, -3.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+	ubo.view = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, -0.2f));// glm::lookAt(glm::vec3(0.0f, 0.1f, -3.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
 	//Projection / Perspective matrix
-	glm::mat4 proj = glm::perspective(glm::radians(67.0f), swapChainExtent.width / (float)swapChainExtent.height, 0.01f, 100.0f);
+	glm::mat4 proj = glm::perspective(glm::radians(67.0f), (float)swapChainExtent.width / (float)swapChainExtent.height, 0.01f, 100.0f);
 	proj[1][1] *= -1;
 	ubo.proj = proj;
 
@@ -1439,8 +1438,10 @@ void VulkanApp::updateUniformBuffer(uint32_t currentImage, unsigned int objectIn
 	vkUnmapMemory(device, uniformBuffersMemory[index]);
 
 	GeomUniformBufferObject gubo = {};
-	gubo.model = ubo.model;
-
+	//gubo.model = ubo.model * glm::scale(glm::mat4(1), glm::vec3(10.5f, 10.5f, 10.5f));
+	gubo.model = glm::mat4(1);
+	gubo.model = ubo.model;// glm::translate(glm::mat4(1.0f), m_Objects[objectIndex]->GetPos()) * glm::rotate(ubo.model, time * glm::radians(45.0f), glm::vec3(0.0f, 1.0f, 0.0f));// *glm::scale(glm::mat4(1.0f), glm::vec3(10.0f, 10.0f, 10.0f));
+	//gubo.model = glm::scale(glm::mat4(1.0f), glm::vec3(1.0f, 1.0f, 1.0f));
 	gubo.view = ubo.view;// glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, -4));
 
 	gubo.proj = ubo.proj;// glm::perspective(glm::radians(67.0f), swapChainExtent.width / (float)swapChainExtent.height, 0.01f, 100.0f);
