@@ -3,20 +3,20 @@
 layout (triangles) in;
 layout (line_strip, max_vertices = 6) out;
 
-layout (binding = 2) uniform GeomUniformBufferObject 
+layout (set = 0, binding = 2) uniform GeomUniformBufferObject 
 {
 	mat4 projection;
 	mat4 model;
 	vec2 screenSize;
 } ubo;
 
-layout (location = 0) in vec3 inNormal[];
+layout (location = 1) in vec3 inNormal[];
 
 layout (location = 0) out vec3 outColor;
 
 void main(void)
 {	
-	float normalLength = 0.02;
+	float normalLength = 5.0;
 	for(int i=0; i<gl_in.length(); i++)
 	{
 		vec3 pos = gl_in[i].gl_Position.xyz;

@@ -535,9 +535,7 @@ void VulkanApp::createLogicalDevice() {
 
 
 
-	VkPhysicalDeviceFeatures deviceFeatures = {
-
-	};
+	VkPhysicalDeviceFeatures deviceFeatures = {};
 
 	deviceFeatures.geometryShader = VK_TRUE;
 
@@ -756,8 +754,8 @@ void VulkanApp::createGraphicsPipeline(VkBool32 depthOn) {
 
 
 	//Set up shader modules for both vertex and fragment shaders
-	VkShaderModule vertShaderModule = createShaderModule(gVertShaderCode);
-	VkShaderModule fragShaderModule = createShaderModule(gFragShaderCode);
+	VkShaderModule vertShaderModule = createShaderModule(vertShaderCode);
+	VkShaderModule fragShaderModule = createShaderModule(fragShaderCode);
 	VkShaderModule geomShaderModule = createShaderModule(geomShaderCode);
 
 	//Set up vertex info
@@ -782,7 +780,8 @@ void VulkanApp::createGraphicsPipeline(VkBool32 depthOn) {
 	fragShaderStageInfo.pName = "main"; //Main function as entry point
 
 	//List shader stage info in order
-	VkPipelineShaderStageCreateInfo shaderStages[] = { vertShaderStageInfo, geomShaderStageInfo, fragShaderStageInfo };
+	//VkPipelineShaderStageCreateInfo shaderStages[] = { vertShaderStageInfo, geomShaderStageInfo, fragShaderStageInfo };
+	VkPipelineShaderStageCreateInfo shaderStages[] = { vertShaderStageInfo, fragShaderStageInfo };
 
 	//Set up vertex input pipline info
 	VkPipelineVertexInputStateCreateInfo vertexInputInfo = {};
@@ -804,7 +803,7 @@ void VulkanApp::createGraphicsPipeline(VkBool32 depthOn) {
 	inputAssembly.primitiveRestartEnable = VK_FALSE;
 
 	//Set up viewport
-	VkViewport viewport = {};
+	viewport = {};
 	viewport.x = 0.0f; //No offset
 	viewport.y = 0.0f;//No offset
 	//Resolution
@@ -897,11 +896,18 @@ void VulkanApp::createGraphicsPipeline(VkBool32 depthOn) {
 	if (vkCreatePipelineLayout(device, &pipelineLayoutInfo, nullptr, &pipelineLayout) != VK_SUCCESS) {
 		throw std::runtime_error("failed to create pipeline layout!");
 	}
+	VkPipelineLayoutCreateInfo pipelineLayoutInfoGeom = {};
+	pipelineLayoutInfoGeom.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+	pipelineLayoutInfoGeom.setLayoutCount = 1;
+	pipelineLayoutInfoGeom.pSetLayouts = &descriptorSetLayoutGeom;
+	if (vkCreatePipelineLayout(device, &pipelineLayoutInfoGeom, nullptr, &pipelineLayoutGeom) != VK_SUCCESS) {
+		throw std::runtime_error("failed to create pipeline layout geom!");
+	}
 
 	//Set up graphics pipline info
 	VkGraphicsPipelineCreateInfo pipelineInfo = {};
 	pipelineInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
-	pipelineInfo.stageCount = 3; //3 shader stages
+	pipelineInfo.stageCount = 2; //3 shader stages
 	//Pass in all data set up before this
 	pipelineInfo.pStages = shaderStages;
 	pipelineInfo.pVertexInputState = &vertexInputInfo;
@@ -918,36 +924,6 @@ void VulkanApp::createGraphicsPipeline(VkBool32 depthOn) {
 	pipelineInfo.pDynamicState = &dynamicState;
 
 
-
-
-	if (vkCreateGraphicsPipelines(device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &graphicsPipelineGeom) != VK_SUCCESS) {
-		throw std::runtime_error("failed to create graphics pipeline!");
-	}
-
-
-
-	pipelineInfo.stageCount = 2;
-	//Set up shader modules for both vertex and fragment shaders
-	vertShaderModule = createShaderModule(vertShaderCode);
-	fragShaderModule = createShaderModule(fragShaderCode);
-
-	//Set up vertex info
-	vertShaderStageInfo = {};
-	vertShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-	vertShaderStageInfo.stage = VK_SHADER_STAGE_VERTEX_BIT; //Vertex stage
-	vertShaderStageInfo.module = vertShaderModule; //Vertex shader
-	vertShaderStageInfo.pName = "main"; //Main function as entry point
-
-	//Set up fragment info
-	fragShaderStageInfo = {};
-	fragShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-	fragShaderStageInfo.stage = VK_SHADER_STAGE_FRAGMENT_BIT; //Fragment stage
-	fragShaderStageInfo.module = fragShaderModule; //Fragment shader
-	fragShaderStageInfo.pName = "main"; //Main function as entry point
-
-	shaderStages[0] = vertShaderStageInfo;
-	shaderStages[1] = fragShaderStageInfo;
-
 	if (depthOn == VK_TRUE)
 	{
 		//Create pipeline and error check
@@ -963,6 +939,36 @@ void VulkanApp::createGraphicsPipeline(VkBool32 depthOn) {
 		}
 	}
 
+
+
+	pipelineInfo.stageCount = 3;
+	//Set up shader modules for both vertex and fragment shaders
+	vertShaderModule = createShaderModule(gVertShaderCode);
+	fragShaderModule = createShaderModule(gFragShaderCode);
+
+	//Set up vertex info
+	vertShaderStageInfo = {};
+	vertShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+	vertShaderStageInfo.stage = VK_SHADER_STAGE_VERTEX_BIT; //Vertex stage
+	vertShaderStageInfo.module = vertShaderModule; //Vertex shader
+	vertShaderStageInfo.pName = "main"; //Main function as entry point
+
+	//Set up fragment info
+	fragShaderStageInfo = {};
+	fragShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+	fragShaderStageInfo.stage = VK_SHADER_STAGE_FRAGMENT_BIT; //Fragment stage
+	fragShaderStageInfo.module = fragShaderModule; //Fragment shader
+	fragShaderStageInfo.pName = "main"; //Main function as entry point
+
+	VkPipelineShaderStageCreateInfo shaderStagesGeom[] = { vertShaderStageInfo, geomShaderStageInfo, fragShaderStageInfo };
+	pipelineInfo.pStages = shaderStagesGeom;
+	pipelineInfo.layout = pipelineLayoutGeom;
+	
+
+
+	if (vkCreateGraphicsPipelines(device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &graphicsPipelineGeom) != VK_SUCCESS) {
+		throw std::runtime_error("failed to create graphics pipeline!");
+	}
 
 
 
@@ -1176,6 +1182,18 @@ void VulkanApp::createCommandBuffers() {
 			{
 				unsigned int index = m_Objects[j]->Passes() * i + j + pass;
 				std::cout << index << std::endl;
+
+				vkCmdSetViewport(commandBuffers[i], 0, 1, &viewport);
+
+				VkRect2D scissor{};
+				scissor.extent.width = swapChainExtent.width;
+				scissor.extent.height = swapChainExtent.height;
+				scissor.offset.x = 0;
+				scissor.offset.y = 0;
+				vkCmdSetScissor(commandBuffers[i], 0, 1, &scissor);
+
+				vkCmdSetLineWidth(commandBuffers[i], 1.0f);
+
 				//Bind the graphics pipeline
 				if (pass == 0)
 					vkCmdBindPipeline(commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline);
@@ -1185,11 +1203,18 @@ void VulkanApp::createCommandBuffers() {
 				//Bind index buffer
 				vkCmdBindIndexBuffer(commandBuffers[i], m_Objects[j]->GetIndexBuffer(), 0, VK_INDEX_TYPE_UINT32);
 
-				//Set the descipter to graphics
+				////Set the descipter to graphics
 				vkCmdBindDescriptorSets(commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &descriptorSets[index], 0, nullptr);
 
-				//Call the draw command
+				////Call the draw command
 				vkCmdDrawIndexed(commandBuffers[i], static_cast<uint32_t>(m_Objects[j]->GetIndices().size()), 1, 0, 0, 0);
+
+				if (pass == 0)
+				{
+					vkCmdBindPipeline(commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipelineGeom);
+					vkCmdBindDescriptorSets(commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayoutGeom, 0, 1, &descriptorSetsGeom[index], 0, nullptr);
+					vkCmdDrawIndexed(commandBuffers[i], static_cast<uint32_t>(m_Objects[j]->GetIndices().size()), 1, 0, 0, 0);
+				}
 			}
 		}
 		//End pass
@@ -1304,20 +1329,30 @@ void VulkanApp::createDescriptorSetLayout()
 	samplerLayoutBinding.pImmutableSamplers = nullptr;
 	samplerLayoutBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
 
-	VkDescriptorSetLayoutBinding guboLayoutBinding = {};
-	uboLayoutBinding.binding = 2;
-	uboLayoutBinding.descriptorCount = 1;
-	uboLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-	uboLayoutBinding.pImmutableSamplers = nullptr;
-	uboLayoutBinding.stageFlags = VK_SHADER_STAGE_GEOMETRY_BIT;
+	
 
-	std::array<VkDescriptorSetLayoutBinding, 3> bindings = { uboLayoutBinding, samplerLayoutBinding, guboLayoutBinding };
+	std::array<VkDescriptorSetLayoutBinding, 2> bindings = { uboLayoutBinding, samplerLayoutBinding };// guboLayoutBinding
+
 	VkDescriptorSetLayoutCreateInfo layoutInfo = {};
 	layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
 	layoutInfo.bindingCount = static_cast<uint32_t>(bindings.size());
 	layoutInfo.pBindings = bindings.data();
 
 	if (vkCreateDescriptorSetLayout(device, &layoutInfo, nullptr, &descriptorSetLayout) != VK_SUCCESS) {
+		throw std::runtime_error("failed to create descriptor set layout!");
+	}
+
+	VkDescriptorSetLayoutBinding guboLayoutBinding = {};
+	guboLayoutBinding.binding = 2;
+	guboLayoutBinding.descriptorCount = 1;
+	guboLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+	guboLayoutBinding.pImmutableSamplers = nullptr;
+	guboLayoutBinding.stageFlags = VK_SHADER_STAGE_GEOMETRY_BIT;
+
+	std::array<VkDescriptorSetLayoutBinding, 2> bindingsGeom = { uboLayoutBinding, guboLayoutBinding };
+	layoutInfo.pBindings = bindingsGeom.data();
+
+	if (vkCreateDescriptorSetLayout(device, &layoutInfo, nullptr, &descriptorSetLayoutGeom) != VK_SUCCESS) {
 		throw std::runtime_error("failed to create descriptor set layout!");
 	}
 }
@@ -1369,9 +1404,11 @@ void VulkanApp::updateUniformBuffer(uint32_t currentImage, unsigned int objectIn
 
 	//Set up the uniform model matrix (rotation and translation and scale)
 	UniformBufferObject ubo = {};
+	//glm::mat4 model = glm::translate(glm::mat4(1.0f), m_Objects[objectIndex]->GetPos()) * glm::rotate(ubo.model, time * glm::radians(45.0f), glm::vec3(0.0f, 1.0f, 0.0f)) * glm::scale(glm::mat4(1.0f), glm::vec3(10.0f, 10.0f, 10.0f));
 	glm::mat4 model = glm::translate(glm::mat4(1.0f), m_Objects[objectIndex]->GetPos()) * glm::rotate(ubo.model, time * glm::radians(45.0f), glm::vec3(0.0f, 1.0f, 0.0f)) * glm::scale(glm::mat4(1.0f), glm::vec3(10.0f, 10.0f, 10.0f));
+	ubo.model = glm::mat4(1);
+	ubo.model = glm::translate(glm::mat4(1.0f), m_Objects[objectIndex]->GetPos()) * glm::rotate(ubo.model, time * glm::radians(45.0f), glm::vec3(0.0f, 1.0f, 0.0f)) * glm::scale(glm::mat4(1.0f), glm::vec3(10.0f, 10.0f, 10.0f));;// glm::translate(glm::mat4(1.0f), m_Objects[objectIndex]->GetPos()) * glm::rotate(ubo.model, time * glm::radians(45.0f), glm::vec3(0.0f, 1.0f, 0.0f)) * glm::scale(glm::mat4(1.0f), glm::vec3(10.0f, 10.0f, 10.0f));
 	
-	ubo.model = model;
 	
 	
 	//View matrix using look at
@@ -1391,9 +1428,12 @@ void VulkanApp::updateUniformBuffer(uint32_t currentImage, unsigned int objectIn
 	vkUnmapMemory(device, uniformBuffersMemory[index]);
 
 	GeomUniformBufferObject gubo = {};
-	gubo.model = model;
-	gubo.proj = proj;
-	gubo.viewportDim = window->getSize();
+	gubo.model = glm::mat4(1);
+	gubo.model = glm::translate(glm::mat4(1.0f), m_Objects[objectIndex]->GetPos()) * glm::rotate(ubo.model, time * glm::radians(45.0f), glm::vec3(0.0f, 1.0f, 0.0f)) * glm::scale(glm::mat4(1.0f), glm::vec3(10.0f, 10.0f, 10.0f));;// glm::translate(glm::mat4(1.0f), m_Objects[objectIndex]->GetPos()) * glm::rotate(ubo.model, time * glm::radians(45.0f), glm::vec3(0.0f, 1.0f, 0.0f)) * glm::scale(glm::mat4(1.0f), glm::vec3(10.0f, 10.0f, 10.0f));
+
+	gubo.proj = glm::perspective(glm::radians(67.0f), swapChainExtent.width / (float)swapChainExtent.height, 0.1f, 10.0f);
+	gubo.proj[1][1] *= -1;
+	gubo.viewportDim = glm::vec2(swapChainExtent.width, swapChainExtent.height);
 
 	void* gdata;
 	vkMapMemory(device, geomUniformBuffersMemory[index], 0, sizeof(gubo), 0, &gdata);
@@ -1409,19 +1449,18 @@ void VulkanApp::createDescriptorPool()
 		size += m_Objects[i]->Passes() * swapChainImages.size();
 	}
 
-	std::array<VkDescriptorPoolSize, 3> poolSizes = {};
+	std::array<VkDescriptorPoolSize, 2> poolSizes = {};
 	poolSizes[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-	poolSizes[0].descriptorCount = static_cast<uint32_t>(size);
+	poolSizes[0].descriptorCount = static_cast<uint32_t>(size*4);
 	poolSizes[1].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
 	poolSizes[1].descriptorCount = static_cast<uint32_t>(size);
-	poolSizes[2].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-	poolSizes[2].descriptorCount = static_cast<uint32_t>(size);
+
 
 	VkDescriptorPoolCreateInfo poolInfo = {};
 	poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
 	poolInfo.poolSizeCount = static_cast<uint32_t>(poolSizes.size());
 	poolInfo.pPoolSizes = poolSizes.data();
-	poolInfo.maxSets = static_cast<uint32_t>(size);
+	poolInfo.maxSets = static_cast<uint32_t>(size)*4;
 
 	if (vkCreateDescriptorPool(device, &poolInfo, nullptr, &descriptorPool) != VK_SUCCESS) {
 		throw std::runtime_error("failed to create descriptor pool!");
@@ -1452,6 +1491,22 @@ void VulkanApp::createDescriptorSets()
 		throw std::runtime_error("failed to allocate descriptor sets!");
 	}
 
+
+	//Allocate memory
+	std::vector<VkDescriptorSetLayout> layoutsGeom(size, descriptorSetLayoutGeom);
+	VkDescriptorSetAllocateInfo allocInfoGeom = {};
+	allocInfoGeom.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+	allocInfoGeom.descriptorPool = descriptorPool; //Pass in the pool
+	allocInfoGeom.descriptorSetCount = static_cast<uint32_t>(layoutsGeom.size()); //Same as pool descriptor count
+	allocInfoGeom.pSetLayouts = layoutsGeom.data(); //Pass in layout data
+
+	descriptorSetsGeom.resize(size);
+
+	//Allocate desciptor sets 
+	if (vkAllocateDescriptorSets(device, &allocInfoGeom, descriptorSetsGeom.data()) != VK_SUCCESS) {
+		throw std::runtime_error("failed to allocate descriptor sets!");
+	}
+
 	//For each swap chain image set up and pass in the descriptor set and buffer for each image
 	for (size_t i = 0; i < swapChainImages.size(); i++) {
 		for (unsigned int j = 0; j < m_Objects.size(); j++)
@@ -1479,7 +1534,7 @@ void VulkanApp::createDescriptorSets()
 					imageInfo.sampler = furTextureSampler;
 				}
 
-				std::array<VkWriteDescriptorSet, 3> descriptorWrites = {};
+				std::array<VkWriteDescriptorSet, 2> descriptorWrites = {};
 				descriptorWrites[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
 				descriptorWrites[0].dstSet = descriptorSets[index]; //desciptor to use
 				descriptorWrites[0].dstBinding = 0;
@@ -1502,16 +1557,20 @@ void VulkanApp::createDescriptorSets()
 				bufferInfoGeom.offset = 0; //Start at the start
 				bufferInfoGeom.range = sizeof(GeomUniformBufferObject); //Size of each buffer
 
-				descriptorWrites[2].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-				descriptorWrites[2].dstSet = descriptorSets[index];
-				descriptorWrites[2].dstBinding = 2;
-				descriptorWrites[2].dstArrayElement = 0;
-				descriptorWrites[2].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-				descriptorWrites[2].descriptorCount = 1;
-				descriptorWrites[2].pBufferInfo = &bufferInfoGeom;
+
+				std::array<VkWriteDescriptorSet, 1> descriptorWritesGeom = {};
+
+				descriptorWritesGeom[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+				descriptorWritesGeom[0].dstSet = descriptorSetsGeom[index];
+				descriptorWritesGeom[0].dstBinding = 2;
+				descriptorWritesGeom[0].dstArrayElement = 0;
+				descriptorWritesGeom[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+				descriptorWritesGeom[0].descriptorCount = 1;
+				descriptorWritesGeom[0].pBufferInfo = &bufferInfoGeom;
 
 				//Set the descriptor set for this image
 				vkUpdateDescriptorSets(device, static_cast<uint32_t>(descriptorWrites.size()), descriptorWrites.data(), 0, nullptr);
+				vkUpdateDescriptorSets(device, static_cast<uint32_t>(descriptorWritesGeom.size()), descriptorWritesGeom.data(), 0, nullptr);
 			}
 		}
 	}

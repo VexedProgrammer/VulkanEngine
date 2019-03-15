@@ -114,7 +114,7 @@ private:
 	VkBuffer m_IndexBuffer;
 	VkDeviceMemory m_IndexBufferMemory;
 
-	unsigned int m_Passes = 5;
+	unsigned int m_Passes = 1;
 
 public:
 

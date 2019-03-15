@@ -115,6 +115,7 @@ private:
 	/*! The render pass contain the information about the frame buffer attachments we use while rendering*/
 	VkRenderPass renderPass;
 	VkPipelineLayout pipelineLayout; //The pipeline layout
+	VkPipelineLayout pipelineLayoutGeom;
 
 	/*! Graphics pipeline that contains the sequence of opertations used to render vertex information to the screen */
 	VkPipeline graphicsPipeline; 
@@ -219,6 +220,7 @@ private:
 
 	//Uniform layouts
 	VkDescriptorSetLayout descriptorSetLayout;
+	VkDescriptorSetLayout descriptorSetLayoutGeom;
 	void createDescriptorSetLayout();
 
 	std::vector<VkBuffer> uniformBuffers;
@@ -232,6 +234,7 @@ private:
 
 	VkDescriptorPool descriptorPool;
 	std::vector<VkDescriptorSet> descriptorSets;
+	std::vector<VkDescriptorSet> descriptorSetsGeom;
 
 	void createDescriptorPool();
 	void createDescriptorSets();
@@ -254,6 +257,8 @@ private:
 	VkDeviceMemory furTextureImageMemory;
 	VkImageView furTextureImageView;
 	VkSampler furTextureSampler;
+
+	VkViewport viewport;
 
 
 };
