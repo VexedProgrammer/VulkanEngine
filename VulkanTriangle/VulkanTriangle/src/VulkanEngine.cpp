@@ -231,6 +231,8 @@ void VulkanEngine::createNoiseTextureImage(VkQueue & graphicsQueue, VkCommandPoo
 	std::uniform_real_distribution<float> randomFloats(0.0, 1.0); // random floats between 0.0 - 1.0
 	std::default_random_engine generator;
 	std::vector<glm::vec4> noiseArray;
+
+	//For each pixel get a random value and if it is above the distribusion threshhold set it to white or if not, set it to the random grayscale colour
 	for (unsigned int i = 0; i < texWidth*texHeight; i++)
 	{
 		float random = randomFloats(generator) * 2.0 - 1.0;

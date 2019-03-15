@@ -290,19 +290,35 @@ const void VulkanApp::cleanup() {
 
 	
 
+	//Cleanup Textures
+	vkDestroyImageView(device, furTextureImageView, nullptr);
+	vkDestroyImage(device, furTextureImage, nullptr);
+	vkFreeMemory(device, furTextureImageMemory, nullptr);
+	vkDestroyImageView(device, finTextureImageView, nullptr);
+	vkDestroyImage(device, finTextureImage, nullptr);
+	vkFreeMemory(device, finTextureImageMemory, nullptr);
+
 	//Clean up descipter pool memory
 	vkDestroyDescriptorPool(device, descriptorPool, nullptr);
 
 	//Clean up layout memory
 	vkDestroyDescriptorSetLayout(device, descriptorSetLayout, nullptr);
-
+	vkDestroyDescriptorSetLayout(device, descriptorSetLayoutGeom, nullptr);
 	//Clean up shader buffers
-	for (size_t i = 0; i < swapChainImages.size()*m_Objects.size(); i++) {
-		vkDestroyBuffer(device, uniformBuffers[i], nullptr);
-		vkFreeMemory(device, uniformBuffersMemory[i], nullptr);
+	for (size_t i = 0; i < swapChainImages.size(); i++) {
+		for (unsigned int j = 0; j < m_Objects.size(); j++)
+		{
+			for (unsigned int p = 0; p < m_Objects[j]->Passes(); p++)
+			{
+				unsigned int index = m_Objects[j]->Passes() * i + j + p;
+				vkDestroyBuffer(device, uniformBuffers[index], nullptr);
+				vkFreeMemory(device, uniformBuffersMemory[index], nullptr);
+				vkDestroyBuffer(device, geomUniformBuffers[index], nullptr);
+				vkFreeMemory(device, geomUniformBuffersMemory[index], nullptr);
+			}
+		}
 	}
-
-	
+	delete m_Objects[0];
 
 	//Clean up semaphore/sync objects
 	for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
@@ -750,9 +766,11 @@ void VulkanApp::createImageViews() {
 void VulkanApp::createGraphicsPipeline(VkBool32 depthOn) {
 
 	//Read in shader files
+	//Base mesh and Shell rendering
 	auto vertShaderCode = readFile("shaders/vertS.spv");
 	auto fragShaderCode = readFile("shaders/fragS.spv");
 
+	//Fins rendering
 	auto gVertShaderCode = readFile("shaders/vert.spv");
 	auto geomShaderCode = readFile("shaders/geom.spv");
 	auto gFragShaderCode = readFile("shaders/frag.spv");
@@ -770,7 +788,7 @@ void VulkanApp::createGraphicsPipeline(VkBool32 depthOn) {
 	vertShaderStageInfo.module = vertShaderModule; //Vertex shader
 	vertShaderStageInfo.pName = "main"; //Main function as entry point
 
-	//Set up vertex info
+	//Set up Geometry state info
 	VkPipelineShaderStageCreateInfo geomShaderStageInfo = {};
 	geomShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
 	geomShaderStageInfo.stage = VK_SHADER_STAGE_GEOMETRY_BIT; //Geometry stage
@@ -935,7 +953,8 @@ void VulkanApp::createGraphicsPipeline(VkBool32 depthOn) {
 		if (vkCreateGraphicsPipelines(device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &graphicsPipeline) != VK_SUCCESS) {
 			throw std::runtime_error("failed to create graphics pipeline!");
 		}
-
+		vkDestroyShaderModule(device, fragShaderModule, nullptr);
+		vkDestroyShaderModule(device, vertShaderModule, nullptr);
 		pipelineInfo.stageCount = 3;
 		//Set up shader modules for both vertex and fragment shaders
 		vertShaderModule = createShaderModule(gVertShaderCode);
@@ -959,7 +978,9 @@ void VulkanApp::createGraphicsPipeline(VkBool32 depthOn) {
 		pipelineInfo.pStages = shaderStagesGeom;
 		pipelineInfo.layout = pipelineLayoutGeom;
 
+		//Don't want to cull any faces for this
 		rasterizer.cullMode = VK_CULL_MODE_NONE;
+		//Need to render this behind the rest so give an accurate effect
 		depthStencil.depthTestEnable = VK_FALSE;
 
 
@@ -984,6 +1005,8 @@ void VulkanApp::createGraphicsPipeline(VkBool32 depthOn) {
 	//Destroy shader modules now we have finished with them
 	vkDestroyShaderModule(device, fragShaderModule, nullptr);
 	vkDestroyShaderModule(device, vertShaderModule, nullptr);
+	vkDestroyShaderModule(device, geomShaderModule, nullptr);
+	
 }
 
 VkShaderModule VulkanApp::createShaderModule(const std::vector<char>& code) {
@@ -1193,6 +1216,7 @@ void VulkanApp::createCommandBuffers() {
 				unsigned int index = m_Objects[j]->Passes() * i + j + pass;
 				std::cout << index << std::endl;
 
+				//Set up dynamic viewport
 				vkCmdSetViewport(commandBuffers[i], 0, 1, &viewport);
 
 				VkRect2D scissor{};
@@ -1202,6 +1226,7 @@ void VulkanApp::createCommandBuffers() {
 				scissor.offset.y = 0;
 				vkCmdSetScissor(commandBuffers[i], 0, 1, &scissor);
 
+				//Set line width (used for debugging vertex normals int he geometry stage)
 				vkCmdSetLineWidth(commandBuffers[i], 1.0f);
 
 				
@@ -1209,6 +1234,7 @@ void VulkanApp::createCommandBuffers() {
 				//Bind index buffer
 				vkCmdBindIndexBuffer(commandBuffers[i], m_Objects[j]->GetIndexBuffer(), 0, VK_INDEX_TYPE_UINT32);
 
+				//On the first pass, draw the fins first
 				if (pass == 0)
 				{
 					vkCmdBindPipeline(commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipelineGeom);
@@ -1313,7 +1339,10 @@ void VulkanApp::cleanupSwapChain() {
 
 	//Destroy graphics pipline and layout
 	vkDestroyPipeline(device, graphicsPipeline, nullptr);
+	vkDestroyPipeline(device, graphicsPipelineNoDepth, nullptr);
 	vkDestroyPipelineLayout(device, pipelineLayout, nullptr);
+	vkDestroyPipeline(device, graphicsPipelineGeom, nullptr);
+	vkDestroyPipelineLayout(device, pipelineLayoutGeom, nullptr);
 	vkDestroyRenderPass(device, renderPass, nullptr); //Clean up render pass data
 
 	//Destroy all image views
@@ -1471,6 +1500,7 @@ void VulkanApp::createDescriptorPool()
 		size += m_Objects[i]->Passes() * swapChainImages.size();
 	}
 
+	//We need to account for the geometry shader pipelines and allocate space for additional descriptors
 	std::array<VkDescriptorPoolSize, 2> poolSizes = {};
 	poolSizes[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
 	poolSizes[0].descriptorCount = static_cast<uint32_t>(size*4);
@@ -1556,6 +1586,7 @@ void VulkanApp::createDescriptorSets()
 					imageInfo.sampler = furTextureSampler;
 				}
 
+				//Pass uniform buffer at binding 0
 				std::array<VkWriteDescriptorSet, 5> descriptorWrites = {};
 				descriptorWrites[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
 				descriptorWrites[0].dstSet = descriptorSets[index]; //desciptor to use
@@ -1565,7 +1596,7 @@ void VulkanApp::createDescriptorSets()
 				descriptorWrites[0].descriptorCount = 1;
 				descriptorWrites[0].pBufferInfo = &bufferInfo;
 				
-
+				//Pass uniform sampler at binding 1
 				descriptorWrites[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
 				descriptorWrites[1].dstSet = descriptorSets[index];
 				descriptorWrites[1].dstBinding = 1;
@@ -1574,11 +1605,14 @@ void VulkanApp::createDescriptorSets()
 				descriptorWrites[1].descriptorCount = 1;
 				descriptorWrites[1].pImageInfo = &imageInfo;
 
+
+				//Now we also need to pass the infomation for the geometry shader pipeline  for all 3 stages (Vert -> Geo -> Frag)
 				VkDescriptorBufferInfo bufferInfoGeom = {};
 				bufferInfoGeom.buffer = geomUniformBuffers[index]; //Actual buffer to use
 				bufferInfoGeom.offset = 0; //Start at the start
 				bufferInfoGeom.range = sizeof(GeomUniformBufferObject); //Size of each buffer
 
+				//Pass uniform buffer at binding 0
 				descriptorWrites[2].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
 				descriptorWrites[2].dstSet = descriptorSetsGeom[index]; //desciptor to use
 				descriptorWrites[2].dstBinding = 0;
@@ -1587,6 +1621,7 @@ void VulkanApp::createDescriptorSets()
 				descriptorWrites[2].descriptorCount = 1;
 				descriptorWrites[2].pBufferInfo = &bufferInfo;
 
+				//Pass geometry uniform buffer at binding 2
 				descriptorWrites[3].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
 				descriptorWrites[3].dstSet = descriptorSetsGeom[index];
 				descriptorWrites[3].dstBinding = 2;
@@ -1601,7 +1636,7 @@ void VulkanApp::createDescriptorSets()
 				imageInfoGeom.imageView = finTextureImageView;
 				imageInfoGeom.sampler = finTextureSampler;
 				
-
+				//Pass uniform texture sampler at binding 1 (fins texture)
 				descriptorWrites[4].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
 				descriptorWrites[4].dstSet = descriptorSetsGeom[index];
 				descriptorWrites[4].dstBinding = 1;

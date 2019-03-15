@@ -33,6 +33,7 @@ VulkanObject::~VulkanObject()
 
 	//Cleanup Texture
 	vkDestroyImage(m_Device, textureImage, nullptr);
+	vkDestroyImageView(m_Device, textureImageView, nullptr);
 	vkFreeMemory(m_Device, textureImageMemory, nullptr);
 
 }

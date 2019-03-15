@@ -13,5 +13,6 @@ void main(void)
 	//{
 	//	discard;
 	//}
+	//Colour the fin based a fixed colour and taper off the alpha depending on the distance from the surface in UV space
 	outFragColor = vec4(vec3(0.15,0.05,0.005), col.a-inTexCoords.y);
 }
