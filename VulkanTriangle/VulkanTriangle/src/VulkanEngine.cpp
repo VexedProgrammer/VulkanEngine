@@ -224,6 +224,57 @@ void VulkanEngine::createTextureImage(VkQueue& graphicsQueue, VkCommandPool& com
 	vkFreeMemory(m_Device, stagingBufferMemory, nullptr);
 }
 
+void VulkanEngine::createNoiseTextureImage(VkQueue & graphicsQueue, VkCommandPool & comPool, VkImage & textureImage, VkDeviceMemory & textureImageMemory, float distribution)
+{
+	int texWidth = 256, texHeight = 256;
+	//Random Noise
+	std::uniform_real_distribution<float> randomFloats(0.0, 1.0); // random floats between 0.0 - 1.0
+	std::default_random_engine generator;
+	std::vector<glm::vec4> noiseArray;
+	for (unsigned int i = 0; i < texWidth*texHeight; i++)
+	{
+		float random = randomFloats(generator) * 2.0 - 1.0;
+		if (random < distribution)
+		{
+			glm::vec4 noise(
+				random,
+				random,
+				random,
+				1.0f);
+			noiseArray.push_back(noise);
+		}
+		else
+		{
+			glm::vec4 noise(
+				0,
+				0,
+				0,
+				0.0f);
+			noiseArray.push_back(noise);
+		}
+	}
+	VkDeviceSize imageSize = texWidth * texHeight * 4;
+
+	VkBuffer stagingBuffer;
+	VkDeviceMemory stagingBufferMemory;
+	createBuffer(imageSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, stagingBuffer, stagingBufferMemory);
+
+	void* data;
+	vkMapMemory(m_Device, stagingBufferMemory, 0, imageSize, 0, &data);
+	memcpy(data, noiseArray.data(), static_cast<size_t>(imageSize));
+	vkUnmapMemory(m_Device, stagingBufferMemory);
+
+
+	createImage(texWidth, texHeight, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, textureImage, textureImageMemory);
+
+	transitionImageLayout(graphicsQueue, comPool, textureImage, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+	copyBufferToImage(graphicsQueue, comPool, stagingBuffer, textureImage, static_cast<uint32_t>(texWidth), static_cast<uint32_t>(texHeight));
+	transitionImageLayout(graphicsQueue, comPool, textureImage, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+
+	vkDestroyBuffer(m_Device, stagingBuffer, nullptr);
+	vkFreeMemory(m_Device, stagingBufferMemory, nullptr);
+}
+
 void VulkanEngine::transitionImageLayout(VkQueue& graphicsQueue, VkCommandPool& comPool, VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout)
 {
 	VkCommandBuffer commandBuffer = beginSingleTimeCommands(comPool);

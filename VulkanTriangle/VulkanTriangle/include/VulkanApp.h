@@ -40,6 +40,7 @@ struct UniformBufferObject {
 struct GeomUniformBufferObject {
 	glm::mat4 model;
 	glm::mat4 proj;
+	glm::mat4 view;
 	glm::vec2 viewportDim;
 };
 

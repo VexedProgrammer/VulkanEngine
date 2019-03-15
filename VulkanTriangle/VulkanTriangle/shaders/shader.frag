@@ -26,7 +26,10 @@ void main() {
 		discard;
 	}
 	
-	outColor = vec4((ambLight+ diffuse)*col.xyz, alpha);
+	if(fragLayer > 1)
+		outColor = vec4((ambLight+ diffuse)*vec3(0,0,0), alpha);
+	else
+		outColor = vec4((ambLight+ diffuse)*col.xyz, alpha);
 	
 	
 
