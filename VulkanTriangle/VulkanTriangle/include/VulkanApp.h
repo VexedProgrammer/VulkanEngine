@@ -259,6 +259,11 @@ private:
 	VkImageView furTextureImageView;
 	VkSampler furTextureSampler;
 
+	VkImage finTextureImage;
+	VkDeviceMemory finTextureImageMemory;
+	VkImageView finTextureImageView;
+	VkSampler finTextureSampler;
+
 	VkViewport viewport;
 
 

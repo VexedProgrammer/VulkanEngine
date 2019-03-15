@@ -59,9 +59,13 @@ const void VulkanApp::initVulkan() {
 	/*m_Objects.push_back(new VulkanObject(m_Engine, physicalDevice, device, graphicsQueue, commandPool, "models/bunny.obj", "textures/wall.jpg"));
 	m_Objects[1]->SetPos(glm::vec3(1.0f, -1, 0));*/
 
-	m_Engine->createNoiseTextureImage(graphicsQueue, commandPool, furTextureImage, furTextureImageMemory, 0.35f);
+	m_Engine->createNoiseTextureImage(graphicsQueue, commandPool, furTextureImage, furTextureImageMemory, 0.25f);
 	furTextureImageView = m_Engine->createTextureImageView(furTextureImage);
 	m_Engine->createTextureSampler(furTextureSampler);
+
+	m_Engine->createTextureImage(graphicsQueue, commandPool, finTextureImage, finTextureImageMemory, "textures/Fin.png");
+	finTextureImageView = m_Engine->createTextureImageView(finTextureImage);
+	m_Engine->createTextureSampler(finTextureSampler);
 	
 
 	createDepthResources();
@@ -956,6 +960,7 @@ void VulkanApp::createGraphicsPipeline(VkBool32 depthOn) {
 		pipelineInfo.layout = pipelineLayoutGeom;
 
 		rasterizer.cullMode = VK_CULL_MODE_NONE;
+		depthStencil.depthTestEnable = VK_FALSE;
 
 
 		if (vkCreateGraphicsPipelines(device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &graphicsPipelineGeom) != VK_SUCCESS) {
@@ -1199,20 +1204,10 @@ void VulkanApp::createCommandBuffers() {
 
 				vkCmdSetLineWidth(commandBuffers[i], 1.0f);
 
-				//Bind the graphics pipeline
-				if (pass == 0)
-					vkCmdBindPipeline(commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline);
-				else
-					vkCmdBindPipeline(commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipelineNoDepth);
+				
 
 				//Bind index buffer
 				vkCmdBindIndexBuffer(commandBuffers[i], m_Objects[j]->GetIndexBuffer(), 0, VK_INDEX_TYPE_UINT32);
-
-				////Set the descipter to graphics
-				vkCmdBindDescriptorSets(commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &descriptorSets[index], 0, nullptr);
-
-				////Call the draw command
-				vkCmdDrawIndexed(commandBuffers[i], static_cast<uint32_t>(m_Objects[j]->GetIndices().size()), 1, 0, 0, 0);
 
 				if (pass == 0)
 				{
@@ -1220,6 +1215,20 @@ void VulkanApp::createCommandBuffers() {
 					vkCmdBindDescriptorSets(commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayoutGeom, 0, 1, &descriptorSetsGeom[index], 0, nullptr);
 					vkCmdDrawIndexed(commandBuffers[i], static_cast<uint32_t>(m_Objects[j]->GetIndices().size()), 1, 0, 0, 0);
 				}
+
+				//Bind the graphics pipeline
+				if (pass == 0)
+					vkCmdBindPipeline(commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline);
+				else
+					vkCmdBindPipeline(commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipelineNoDepth);
+
+				////Set the descipter to graphics
+				vkCmdBindDescriptorSets(commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &descriptorSets[index], 0, nullptr);
+
+				////Call the draw command
+				vkCmdDrawIndexed(commandBuffers[i], static_cast<uint32_t>(m_Objects[j]->GetIndices().size()), 1, 0, 0, 0);
+
+				
 			}
 		}
 		//End pass
@@ -1360,7 +1369,7 @@ void VulkanApp::createDescriptorSetLayout()
 	guboLayoutBinding.pImmutableSamplers = nullptr;
 	guboLayoutBinding.stageFlags = VK_SHADER_STAGE_GEOMETRY_BIT;*/
 
-	std::array<VkDescriptorSetLayoutBinding, 2> bindingsGeom = { uboLayoutBinding, guboLayoutBinding };
+	std::array<VkDescriptorSetLayoutBinding, 3> bindingsGeom = { uboLayoutBinding, guboLayoutBinding, samplerLayoutBinding };
 	layoutInfo.pBindings = bindingsGeom.data();
 	layoutInfo.bindingCount = static_cast<uint32_t>(bindingsGeom.size());
 
@@ -1466,7 +1475,7 @@ void VulkanApp::createDescriptorPool()
 	poolSizes[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
 	poolSizes[0].descriptorCount = static_cast<uint32_t>(size*4);
 	poolSizes[1].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-	poolSizes[1].descriptorCount = static_cast<uint32_t>(size);
+	poolSizes[1].descriptorCount = static_cast<uint32_t>(size*4);
 
 
 	VkDescriptorPoolCreateInfo poolInfo = {};
@@ -1547,7 +1556,7 @@ void VulkanApp::createDescriptorSets()
 					imageInfo.sampler = furTextureSampler;
 				}
 
-				std::array<VkWriteDescriptorSet, 4> descriptorWrites = {};
+				std::array<VkWriteDescriptorSet, 5> descriptorWrites = {};
 				descriptorWrites[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
 				descriptorWrites[0].dstSet = descriptorSets[index]; //desciptor to use
 				descriptorWrites[0].dstBinding = 0;
@@ -1585,6 +1594,21 @@ void VulkanApp::createDescriptorSets()
 				descriptorWrites[3].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
 				descriptorWrites[3].descriptorCount = 1;
 				descriptorWrites[3].pBufferInfo = &bufferInfoGeom;
+
+				VkDescriptorImageInfo imageInfoGeom = {};
+				imageInfoGeom.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+
+				imageInfoGeom.imageView = finTextureImageView;
+				imageInfoGeom.sampler = finTextureSampler;
+				
+
+				descriptorWrites[4].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+				descriptorWrites[4].dstSet = descriptorSetsGeom[index];
+				descriptorWrites[4].dstBinding = 1;
+				descriptorWrites[4].dstArrayElement = 0;
+				descriptorWrites[4].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+				descriptorWrites[4].descriptorCount = 1;
+				descriptorWrites[4].pImageInfo = &imageInfoGeom;
 
 				//Set the descriptor set for this image
 				vkUpdateDescriptorSets(device, static_cast<uint32_t>(descriptorWrites.size()), descriptorWrites.data(), 0, nullptr);
